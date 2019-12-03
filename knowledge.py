@@ -6,11 +6,9 @@ class knowledge:
         # split each line, add the line into list 
         for PL in PLs:
             listPls.append(self.splitLine(PL))
-       
         # count words
         self.charCount = self.countWords(listPls)
         self.charCount.sort()
-
         # create dictionary of word to store index in matrix
         self.words = {}
         self.NoWords = 0
@@ -18,11 +16,6 @@ class knowledge:
             self.words[i] = self.NoWords
             self.NoWords +=1
 
-        # create matrix to represent KB
-        # matrix[i][j] = 
-        #   0   :if this word doesn't appear in i'th sentence
-        #   1   :if this word is positive
-        #   -1  :if this word is negative
         self.matrix = []
         for i in listPls:
             self.matrix.append(self.sentenceToMatrix(i))
@@ -54,9 +47,28 @@ class knowledge:
             if temp[0] == "-":
                 temp = temp[1:]
                 value = -1
-            rowMatrix[self.words[temp]] = value
+            if temp in self.words:
+                rowMatrix[self.words[temp]] = value
         return rowMatrix
-
+    def toSentence(self,M):
+        if len(M) != self.NoWords:
+            print("err")
+            return None
+        else:
+            sen =""
+            for i in range(self.NoWords):
+                if M[i] == 1:
+                    if sen != "":
+                        sen+=" OR "
+                    sen += self.charCount[i]
+                if M[i] == -1:
+                    if sen != "":
+                        sen+=" OR "
+                    sen += "-"
+                    sen += self.charCount[i]
+            if sen == "":
+                sen +="{}"
+            return sen 
     def resolutionHelper(self,PL1,PL2,index):
         re = [0 for x in range(self.NoWords)]
         if abs(PL1[index] - PL2[index]) != 2 :
@@ -99,22 +111,32 @@ class knowledge:
         return rel,added
 
     def negative(self,alpha):
+        rel = []
         for i in range(len(alpha)):
-            alpha[i] = -alpha[i]
-        return alpha
-        
+            if alpha[i] != 0:
+                temp = [0 for x in range(self.NoWords)]
+                temp[i] = - alpha[i]
+                rel.append(temp)
+        return rel
     def PL_resolution(self,alpha):
+        flag , rel = self.PL_resolutionHelper(alpha)
+        PLs = []
+        if rel != None:
+            for i in rel:
+                pl = []
+                for j in i:
+                    pl .append(self.toSentence(j))
+                PLs.append(pl)
+        return flag,PLs
+    def PL_resolutionHelper(self,alpha):
         alphaToken = self.splitLine(alpha)
-        try:
-            rowAlpha = self.sentenceToMatrix(alphaToken)
-            rowAlpha = self.negative(rowAlpha)
-        except:
-            return "NO1",None
+        rowAlpha = self.sentenceToMatrix(alphaToken)
+        rowAlphaNegative = self.negative(rowAlpha)
 
         empty = [0 for x in range(self.NoWords)]
 
         alphaMatrix = self.matrix.copy()
-        alphaMatrix.append(rowAlpha)
+        alphaMatrix += rowAlphaNegative
 
         m = len(alphaMatrix)
         newPLs = []
@@ -129,15 +151,14 @@ class knowledge:
                             rel.append(k)
             if len(rel) != 0:
                 newPLs,plM = self.combine(rel,newPLs)
+                alphaMatrix,added= self.combine(newPLs,alphaMatrix)
+                relPls.append(added)
             else:
-                return "NO",relPls
-            if len(plM) == 0:
-                return "NO2",relPls
-            alphaMatrix,added= self.combine(newPLs,alphaMatrix)
-            if len(added) == 0:
-                return "NO3",relPls
-            relPls.append(added)
+                relPls.append([])
+                return "NO1",relPls
             if empty in newPLs:
                 return "YES",relPls
+            if len(added) == 0:
+                return "NO2",relPls
             m = len(alphaMatrix)
         return 0
